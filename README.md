@@ -3,11 +3,9 @@ Repository description goes here.
 
 
 ## Installation
-1. git clone <repository>
-2. Add dependencies to setup.py and environment.yml
-3. Create conda environment:
+1. `git clone <repository>``
+2. Open repository folder
+2. Create conda environment:
 ```conda env create -f environment.yml```
-4. Make package editable:
+3. Make package editable:
 ```python setup.py develop```
-
-

@@ -1,9 +1,14 @@
-name: analysis_template
+name: cameron_alison_theta_decoding
 channels:
 - defaults
 - conda-forge
+- edeno
 dependencies:
 - "python>=3.6"
+- loren_frank_data_processing
+- ripple_detection
+- replay_trajectory_classification
+- spectral_connectivity
 - numpy
 - numba
 - scipy
@@ -11,6 +16,7 @@ dependencies:
 - matplotlib
 - xarray
 - pandas
+- seaborn
 - dask
 - tqdm
 - statsmodels
@@ -22,3 +28,5 @@ dependencies:
 - pytest
 - pytest-cov
 - coveralls
+- pip:
+  - nb_black
