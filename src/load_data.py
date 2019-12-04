@@ -21,7 +21,8 @@ def get_interpolated_position_info(epoch_key, animals):
         track_segment_id, index=position_info.index)
 
     position_info['linear_distance'] = calculate_linear_distance(
-        track_graph, track_segment_id.values, center_well_id, position)
+        track_graph, track_segment_id.values.squeeze(), center_well_id,
+        position)
 
     position_info = position_info.resample('2ms').mean().interpolate('time')
     position_info.loc[
