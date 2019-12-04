@@ -15,6 +15,7 @@ dependencies:
 - scikit-learn
 - matplotlib
 - xarray
+- hvplot
 - pandas
 - seaborn
 - dask
