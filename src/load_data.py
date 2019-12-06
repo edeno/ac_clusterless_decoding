@@ -2,11 +2,16 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
+from logging import getLogger
+
 from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          make_tetrode_dataframe)
 from loren_frank_data_processing.position import _get_pos_dataframe
 from loren_frank_data_processing.track_segment_classification import (calculate_linear_distance,
                                                                       classify_track_segments)
+from src.parameters import ANIMALS
+
+logger = getLogger(__name__)
 
 
 def get_interpolated_position_info(epoch_key, animals):
@@ -84,17 +89,23 @@ def make_track_graph():
     return track_graph, CENTER_WELL_ID
 
 
-def load_data(epoch_key, animals):
-    position_info = get_interpolated_position_info(epoch_key, animals)
+def load_data(epoch_key):
+    logger.info('Loading position information and linearizing...')
+    position_info = get_interpolated_position_info(epoch_key, ANIMALS)
 
-    tetrode_info = (make_tetrode_dataframe(animals)
+    logger.info('Loading multiunits...')
+    tetrode_info = (make_tetrode_dataframe(ANIMALS)
                     .xs(epoch_key, drop_level=False))
-    multiunit = get_all_multiunit_indicators(
-        tetrode_info.index, animals, position_info)
+    tetrode_keys = tetrode_info.loc[tetrode_info.area == 'ca1'].index
+
+    def _time_function(*args, **kwargs):
+        return position_info.index
+    multiunits = get_all_multiunit_indicators(
+        tetrode_keys, ANIMALS, _time_function)
 
     return {
         'position_info': position_info,
-        'multiunit': multiunit,
+        'multiunits': multiunits,
     }
 
 
