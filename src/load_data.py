@@ -1,11 +1,14 @@
+import os
+from logging import getLogger
+
 import networkx as nx
 import numpy as np
 import pandas as pd
-
-from logging import getLogger
+from scipy.io import loadmat
 
 from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          make_tetrode_dataframe)
+from loren_frank_data_processing.core import reconstruct_time
 from loren_frank_data_processing.position import _get_pos_dataframe
 from loren_frank_data_processing.track_segment_classification import (calculate_linear_distance,
                                                                       classify_track_segments)
@@ -100,12 +103,19 @@ def load_data(epoch_key):
 
     def _time_function(*args, **kwargs):
         return position_info.index
+
     multiunits = get_all_multiunit_indicators(
         tetrode_keys, ANIMALS, _time_function)
+
+    is_ref = (tetrode_info.reset_index()
+              .tetrode_number.isin(tetrode_info.ref.dropna().unique())).values
+    ref_tetrode_key = tetrode_info.loc[is_ref].index[0]
+    theta_df = get_filter(ref_tetrode_key, ANIMALS, freq_band='theta')
 
     return {
         'position_info': position_info,
         'multiunits': multiunits,
+        'theta': theta_df,
     }
 
 
@@ -123,3 +133,41 @@ def convert_linear_distance_to_linear_position(
         linear_position[is_cur_edge] = cur_distance
 
     return linear_position
+
+
+def get_filter_filename(tetrode_key, animals, freq_band='theta'):
+    '''Returns a file name for the filtered LFP for an epoch.
+
+    Parameters
+    ----------
+    tetrode_key : tuple
+        Unique key identifying the tetrode. Elements are
+        (animal_short_name, day, epoch, tetrode_number).
+    animals : dict of named-tuples
+        Dictionary containing information about the directory for each
+        animal. The key is the animal_short_name.
+
+    Returns
+    -------
+    filename : str
+        File path to tetrode file LFP
+    '''
+    animal, day, epoch, tetrode_number = tetrode_key
+    filename = (f'{animals[animal].short_name}{freq_band}{day:02d}-{epoch}-'
+                f'{tetrode_number:02d}.mat')
+    return os.path.join(animals[animal].directory, 'EEG', filename)
+
+
+def get_filter(tetrode_key, animals, freq_band='theta'):
+    filter_file = loadmat(
+        get_filter_filename(tetrode_key, animals, freq_band))
+    filter_data = filter_file[freq_band][0, -1][0, -1][0, -1][0]
+    time = reconstruct_time(
+        filter_data['starttime'][0][0][0],
+        filter_data['data'][0].shape[0],
+        float(filter_data['samprate'][0][0][0]))
+
+    COLUMNS = ['bandpassed_lfp', 'instantaneous_phase', 'envelope_magnitude']
+    df = pd.DataFrame(filter_data['data'][0], columns=COLUMNS, index=time)
+
+    return df
