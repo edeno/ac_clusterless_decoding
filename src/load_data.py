@@ -32,13 +32,27 @@ def get_interpolated_position_info(epoch_key, animals):
         track_graph, track_segment_id.values.squeeze(), center_well_id,
         position)
 
+    min_max = (position_info
+               .groupby(track_segment_id.values.squeeze())
+               .linear_distance
+               .aggregate(['min', 'max']))
+
     position_info = position_info.resample('2ms').mean().interpolate('time')
-    position_info.loc[
-        position_info.linear_distance < 0, 'linear_distance'] = 0.0
     position_info.loc[
         position_info.speed < 0, 'speed'] = 0.0
     position_info['track_segment_id'] = (
         track_segment_id.reindex(index=position_info.index, method='pad'))
+
+    for id, df in position_info.groupby('track_segment_id'):
+        is_less = (position_info.loc[df.index].linear_distance <
+                   min_max.loc[id, 'min'])
+        position_info.loc[
+            df.index[is_less], 'linear_distance'] = min_max.loc[id, 'min']
+
+        is_more = (position_info.loc[df.index].linear_distance >
+                   min_max.loc[id, 'max'])
+        position_info.loc[
+            df.index[is_more], 'linear_distance'] = min_max.loc[id, 'max']
 
     EDGE_ORDER = [6, 5, 3, 8, 7, 4, 2, 0, 1]
     position_info['linear_position'] = convert_linear_distance_to_linear_position(
