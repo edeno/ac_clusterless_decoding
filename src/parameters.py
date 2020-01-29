@@ -14,3 +14,6 @@ FIGURE_DIR = join(ROOT_DIR, 'figures')
 ANIMALS = {
     'jaq': Animal(directory=join(RAW_DATA_DIR, 'jaq'), short_name='jaq'),
 }
+
+EDGE_ORDER = [6, 5, 3, 8, 7, 4, 2, 0, 1]
+EDGE_SPACING = 15

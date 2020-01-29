@@ -4,60 +4,49 @@ from logging import getLogger
 import networkx as nx
 import numpy as np
 import pandas as pd
-from scipy.io import loadmat
-
 from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          make_tetrode_dataframe)
 from loren_frank_data_processing.core import reconstruct_time
-from loren_frank_data_processing.position import _get_pos_dataframe
-from loren_frank_data_processing.track_segment_classification import (calculate_linear_distance,
-                                                                      classify_track_segments)
-from src.parameters import ANIMALS
+from loren_frank_data_processing.position import (_calulcate_linear_position,
+                                                  _get_pos_dataframe,
+                                                  calculate_linear_velocity)
+from loren_frank_data_processing.track_segment_classification import (
+    calculate_linear_distance, classify_track_segments)
+from scipy.io import loadmat
+
+from src.parameters import ANIMALS, EDGE_ORDER, EDGE_SPACING
 
 logger = getLogger(__name__)
 
 
-def get_interpolated_position_info(epoch_key, animals):
+def get_interpolated_position_info(
+        epoch_key, animals, route_euclidean_distance_scaling=1,
+        sensor_std_dev=5, diagonal_bias=0.5):
     position_info = _get_pos_dataframe(epoch_key, animals)
-
-    position = position_info.loc[:, ['x_position', 'y_position']].values
-    track_graph, center_well_id = make_track_graph()
-    track_segment_id = classify_track_segments(
-        track_graph, position, route_euclidean_distance_scaling=0.1,
-        sensor_std_dev=10)
-    track_segment_id = pd.DataFrame(
-        track_segment_id, index=position_info.index)
-
-    position_info['linear_distance'] = calculate_linear_distance(
-        track_graph, track_segment_id.values.squeeze(), center_well_id,
-        position)
-
-    min_max = (position_info
-               .groupby(track_segment_id.values.squeeze())
-               .linear_distance
-               .aggregate(['min', 'max']))
 
     position_info = position_info.resample('2ms').mean().interpolate('time')
     position_info.loc[
         position_info.speed < 0, 'speed'] = 0.0
-    position_info['track_segment_id'] = (
-        track_segment_id.reindex(index=position_info.index, method='pad'))
+    track_graph, center_well_id = make_track_graph()
+    position = position_info.loc[:, ['x_position', 'y_position']].values
 
-    for id, df in position_info.groupby('track_segment_id'):
-        is_less = (position_info.loc[df.index].linear_distance <
-                   min_max.loc[id, 'min'])
-        position_info.loc[
-            df.index[is_less], 'linear_distance'] = min_max.loc[id, 'min']
-
-        is_more = (position_info.loc[df.index].linear_distance >
-                   min_max.loc[id, 'max'])
-        position_info.loc[
-            df.index[is_more], 'linear_distance'] = min_max.loc[id, 'max']
-
-    EDGE_ORDER = [6, 5, 3, 8, 7, 4, 2, 0, 1]
-    position_info['linear_position'] = convert_linear_distance_to_linear_position(
+    track_segment_id = classify_track_segments(
+        track_graph, position,
+        route_euclidean_distance_scaling=route_euclidean_distance_scaling,
+        sensor_std_dev=sensor_std_dev,
+        diagonal_bias=diagonal_bias)
+    position_info['linear_distance'] = calculate_linear_distance(
+        track_graph, track_segment_id, center_well_id, position)
+    position_info['track_segment_id'] = track_segment_id
+    position_info['linear_position'] = _calulcate_linear_position(
         position_info.linear_distance.values,
-        position_info.track_segment_id.values, EDGE_ORDER, spacing=15)
+        position_info.track_segment_id.values, track_graph, center_well_id,
+        edge_order=EDGE_ORDER, edge_spacing=EDGE_SPACING)
+
+    position_info['linear_velocity'] = calculate_linear_velocity(
+        position_info.linear_distance, smooth_duration=0.500,
+        sampling_frequency=500)
+    position_info['linear_speed'] = np.abs(position_info.linear_velocity)
 
     return position_info
 
@@ -111,8 +100,8 @@ def load_data(epoch_key):
     position_info = get_interpolated_position_info(epoch_key, ANIMALS)
 
     logger.info('Loading multiunits...')
-    tetrode_info = (make_tetrode_dataframe(ANIMALS)
-                    .xs(epoch_key, drop_level=False))
+    tetrode_info = make_tetrode_dataframe(
+        ANIMALS).xs(epoch_key, drop_level=False)
     tetrode_keys = tetrode_info.loc[tetrode_info.area == 'ca1'].index
 
     def _time_function(*args, **kwargs):
@@ -131,22 +120,6 @@ def load_data(epoch_key):
         'multiunits': multiunits,
         'theta': theta_df,
     }
-
-
-def convert_linear_distance_to_linear_position(
-        linear_distance, track_segment_id, edge_order, spacing=30):
-    linear_position = linear_distance.copy()
-
-    for prev_edge, cur_edge in zip(edge_order[:-1], edge_order[1:]):
-        is_cur_edge = (track_segment_id == cur_edge)
-        is_prev_edge = (track_segment_id == prev_edge)
-
-        cur_distance = linear_position[is_cur_edge]
-        cur_distance -= cur_distance.min()
-        cur_distance += linear_position[is_prev_edge].max() + spacing
-        linear_position[is_cur_edge] = cur_distance
-
-    return linear_position
 
 
 def get_filter_filename(tetrode_key, animals, freq_band='theta'):
