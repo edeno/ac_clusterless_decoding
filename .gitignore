@@ -93,3 +93,4 @@ coverage.xml
 *.mp4
 *.lock
 *.dirlock
+*.nc
