@@ -8,6 +8,7 @@ dependencies:
 - loren_frank_data_processing
 - ripple_detection
 - replay_trajectory_classification
+- replay_identification
 - spectral_connectivity
 - numpy
 - numba
