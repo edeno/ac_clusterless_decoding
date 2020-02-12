@@ -5,6 +5,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from scipy.io import loadmat
+from scipy.ndimage.filters import gaussian_filter1d
 
 from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          make_tetrode_dataframe)
@@ -14,9 +15,60 @@ from loren_frank_data_processing.position import (_calulcate_linear_position,
                                                   calculate_linear_velocity)
 from loren_frank_data_processing.track_segment_classification import (
     calculate_linear_distance, classify_track_segments)
-from src.parameters import ANIMALS, EDGE_ORDER, EDGE_SPACING
+from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
+                            SAMPLING_FREQUENCY)
 
 logger = getLogger(__name__)
+
+
+def gaussian_smooth(data, sigma, sampling_frequency, axis=0, truncate=8):
+    '''1D convolution of the data with a Gaussian.
+
+    The standard deviation of the gaussian is in the units of the sampling
+    frequency. The function is just a wrapper around scipy's
+    `gaussian_filter1d`, The support is truncated at 8 by default, instead
+    of 4 in `gaussian_filter1d`
+
+    Parameters
+    ----------
+    data : array_like
+    sigma : float
+    sampling_frequency : int
+    axis : int, optional
+    truncate : int, optional
+
+    Returns
+    -------
+    smoothed_data : array_like
+
+    '''
+    return gaussian_filter1d(
+        data, sigma * sampling_frequency, truncate=truncate, axis=axis,
+        mode='constant')
+
+
+def get_multiunit_population_firing_rate(multiunit, sampling_frequency,
+                                         smoothing_sigma=0.015):
+    '''Calculates the multiunit population firing rate.
+
+    Parameters
+    ----------
+    multiunit : ndarray, shape (n_time, n_signals)
+        Binary array of multiunit spike times.
+    sampling_frequency : float
+        Number of samples per second.
+    smoothing_sigma : float or np.timedelta
+        Amount to smooth the firing rate over time. The default is
+        given assuming time is in units of seconds.
+
+
+    Returns
+    -------
+    multiunit_population_firing_rate : ndarray, shape (n_time,)
+
+    '''
+    return gaussian_smooth(multiunit.mean(axis=1) * sampling_frequency,
+                           smoothing_sigma, sampling_frequency)
 
 
 def get_interpolated_position_info(
@@ -111,6 +163,13 @@ def load_data(epoch_key):
     multiunits = get_all_multiunit_indicators(
         tetrode_keys, ANIMALS, _time_function)
 
+    multiunit_spikes = (np.any(~np.isnan(multiunits.values), axis=1)
+                        ).astype(np.float)
+    multiunit_firing_rate = pd.DataFrame(
+        get_multiunit_population_firing_rate(
+            multiunit_spikes, SAMPLING_FREQUENCY), index=position_info.index,
+        columns=['firing_rate'])
+
     is_ref = (tetrode_info.reset_index()
               .tetrode_number.isin(tetrode_info.ref.dropna().unique())).values
     ref_tetrode_key = tetrode_info.loc[is_ref].index[0]
@@ -120,6 +179,7 @@ def load_data(epoch_key):
         'position_info': position_info,
         'multiunits': multiunits,
         'theta': theta_df,
+        'multiunit_firing_rate': multiunit_firing_rate,
     }
 
 
