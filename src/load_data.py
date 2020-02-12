@@ -4,6 +4,8 @@ from logging import getLogger
 import networkx as nx
 import numpy as np
 import pandas as pd
+from scipy.io import loadmat
+
 from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          make_tetrode_dataframe)
 from loren_frank_data_processing.core import reconstruct_time
@@ -12,8 +14,6 @@ from loren_frank_data_processing.position import (_calulcate_linear_position,
                                                   calculate_linear_velocity)
 from loren_frank_data_processing.track_segment_classification import (
     calculate_linear_distance, classify_track_segments)
-from scipy.io import loadmat
-
 from src.parameters import ANIMALS, EDGE_ORDER, EDGE_SPACING
 
 logger = getLogger(__name__)
@@ -21,7 +21,8 @@ logger = getLogger(__name__)
 
 def get_interpolated_position_info(
         epoch_key, animals, route_euclidean_distance_scaling=1,
-        sensor_std_dev=5, diagonal_bias=0.5):
+        sensor_std_dev=5, diagonal_bias=0.5, edge_spacing=EDGE_SPACING,
+        edge_order=EDGE_ORDER,):
     position_info = _get_pos_dataframe(epoch_key, animals)
 
     position_info = position_info.resample('2ms').mean().interpolate('time')
@@ -41,7 +42,7 @@ def get_interpolated_position_info(
     position_info['linear_position'] = _calulcate_linear_position(
         position_info.linear_distance.values,
         position_info.track_segment_id.values, track_graph, center_well_id,
-        edge_order=EDGE_ORDER, edge_spacing=EDGE_SPACING)
+        edge_order=edge_order, edge_spacing=edge_spacing)
 
     position_info['linear_velocity'] = calculate_linear_velocity(
         position_info.linear_distance, smooth_duration=0.500,
