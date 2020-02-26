@@ -161,6 +161,7 @@ def plot_local_non_local_time_slice(
     results,
     data,
     posterior_type="acausal_posterior",
+    figsize=(30, 20),
 ):
     t = data["position_info"].index / np.timedelta64(1, "s")
     mask = np.ones_like(detector.is_track_interior_.squeeze(), dtype=np.float)
