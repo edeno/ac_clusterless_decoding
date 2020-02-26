@@ -79,12 +79,12 @@ def plot_classifier_time_slice(
     cmap.set_bad("white", alpha=0.0)
 
     fig, axes = plt.subplots(
-        4,
-        1,
+        nrows=5,
+        ncols=1,
         figsize=figsize,
         sharex=True,
         constrained_layout=True,
-        gridspec_kw={"height_ratios": [3, 1, 1, 1]},
+        gridspec_kw={"height_ratios": [3, 1, 1, 1, 1]},
     )
 
     # ax 0
@@ -138,8 +138,15 @@ def plot_classifier_time_slice(
     axes[2].set_ylabel("Firing Rate\n[spikes / s]")
     axes[2].set_title("Multiunit")
 
-    # ax 3
-    axes[3].fill_between(
+    # ax 4
+    theta = data['theta'].set_index(
+        data['theta'].index / np.timedelta64(1, 's')).loc[time_slice]
+    axes[3].plot(theta.index, theta.bandpassed_lfp)
+    axes[3].set_title('Theta filtered LFP')
+    axes[3].set_ylabel('Amplitude [mV]')
+
+    # ax 5
+    axes[4].fill_between(
         data["position_info"].reset_index().set_index(t).loc[time_slice].index,
         data["position_info"]
         .reset_index()
@@ -150,8 +157,9 @@ def plot_classifier_time_slice(
         linewidth=1,
         alpha=0.5,
     )
-    axes[3].set_ylabel("Speed [cm / s]")
-    axes[3].set_xlabel("Time [s]")
+    axes[4].set_title('Speed')
+    axes[4].set_ylabel("Speed [cm / s]")
+    axes[4].set_xlabel("Time [s]")
     sns.despine()
 
 
@@ -170,12 +178,12 @@ def plot_local_non_local_time_slice(
     cmap.set_bad("white", alpha=0.0)
 
     fig, axes = plt.subplots(
-        4,
-        1,
+        nrows=5,
+        ncols=1,
         figsize=figsize,
         sharex=True,
         constrained_layout=True,
-        gridspec_kw={"height_ratios": [3, 1, 1, 1]},
+        gridspec_kw={"height_ratios": [3, 1, 1, 1, 1]},
     )
 
     # ax 0
@@ -224,8 +232,15 @@ def plot_local_non_local_time_slice(
     axes[2].set_ylabel("Firing Rate\n[spikes / s]")
     axes[2].set_title("Multiunit")
 
-    # ax 3
-    axes[3].fill_between(
+    # ax 4
+    theta = data['theta'].set_index(
+        data['theta'].index / np.timedelta64(1, 's')).loc[time_slice]
+    axes[3].plot(theta.index, theta.bandpassed_lfp)
+    axes[3].set_title('Theta filtered LFP')
+    axes[3].set_ylabel('Amplitude [mV]')
+
+    # ax 5
+    axes[4].fill_between(
         data["position_info"].reset_index().set_index(t).loc[time_slice].index,
         data["position_info"]
         .reset_index()
@@ -236,8 +251,9 @@ def plot_local_non_local_time_slice(
         linewidth=1,
         alpha=0.5,
     )
-    axes[3].set_ylabel("Speed [cm / s]")
-    axes[3].set_xlabel("Time [s]")
+    axes[4].set_ylabel("Speed [cm / s]")
+    axes[4].set_title('Speed')
+    axes[4].set_xlabel("Time [s]")
     sns.despine()
 
 
