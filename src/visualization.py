@@ -151,7 +151,7 @@ def plot_classifier_time_slice(
         alpha=0.5,
     )
     axes[3].set_ylabel("Speed [cm / s]")
-    axes[3].set_xlabel("Time [ms]")
+    axes[3].set_xlabel("Time [s]")
     sns.despine()
 
 
@@ -237,5 +237,5 @@ def plot_local_non_local_time_slice(
         alpha=0.5,
     )
     axes[3].set_ylabel("Speed [cm / s]")
-    axes[3].set_xlabel("Time [ms]")
+    axes[3].set_xlabel("Time [s]")
     sns.despine()
