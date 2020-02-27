@@ -53,6 +53,9 @@ def add_node(pos, edge, graph, node_name):
 
 def calculate_replay_distance(
         posterior, track_graph, decoder, position_2D, track_segment_id):
+    track_segment_id = np.asarray(track_segment_id).astype(int).squeeze()
+    position_2D = np.asarray(position_2D)
+
     map_position_2d, map_edges = _get_MAP_estimate_2d_position_edges(
         posterior, track_graph, decoder)
     (actual_projected_position,
