@@ -9,7 +9,7 @@ INSTALL_REQUIRES = ['numpy', 'numba', 'scipy', 'scikit-learn', 'matplotlib',
 TESTS_REQUIRE = ['pytest >= 2.7.1']
 
 setup(
-    name='cameron_alison_theta_decoding',
+    name='ac_clusterless_decoding',
     version='0.1.0.dev0',
     license='MIT',
     description=(''),
