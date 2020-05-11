@@ -8,6 +8,6 @@
 3. Create conda environment:
 ```conda env create -f environment.yml```
 4. Activate conda environment:
-```conda activate ac_clusterless_decoding.yml```
+```conda activate ac_clusterless_decoding```
 5. Make package editable:
 ```python setup.py develop```
