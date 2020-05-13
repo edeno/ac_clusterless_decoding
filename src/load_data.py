@@ -74,7 +74,7 @@ def get_multiunit_population_firing_rate(multiunit, sampling_frequency,
 def get_interpolated_position_info(
         epoch_key, animals, route_euclidean_distance_scaling=1,
         sensor_std_dev=5, diagonal_bias=0.5, edge_spacing=EDGE_SPACING,
-        edge_order=EDGE_ORDER,):
+        edge_order=EDGE_ORDER):
     position_info = _get_pos_dataframe(epoch_key, animals)
 
     position_info = position_info.resample('2ms').mean().interpolate('time')
@@ -88,7 +88,9 @@ def get_interpolated_position_info(
         route_euclidean_distance_scaling=route_euclidean_distance_scaling,
         sensor_std_dev=sensor_std_dev,
         diagonal_bias=diagonal_bias)
-    position_info['linear_distance'] = calculate_linear_distance(
+    (position_info['linear_distance'],
+     position_info['projected_x_position'],
+     position_info['projected_y_position']) = calculate_linear_distance(
         track_graph, track_segment_id, center_well_id, position)
     position_info['track_segment_id'] = track_segment_id
     position_info['linear_position'] = _calulcate_linear_position(
