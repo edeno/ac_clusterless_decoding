@@ -155,8 +155,10 @@ def get_ahead_or_behind(
         # insert edges between nodes
         if np.all(actual_edge == mental_edge):  # if all on same edge
             same_side = (
-                get_distance_between_nodes(track_graph, "actual_position", "mental_position") <=
-                get_distance_between_nodes(track_graph, "actual_position", node_ahead))
+                get_distance_between_nodes(
+                    track_graph, "actual_position", "mental_position") <=
+                get_distance_between_nodes(
+                    track_graph, "actual_position", node_ahead))
             if same_side:
                 node_order = [
                     node_ahead,
@@ -209,3 +211,29 @@ def get_ahead_or_behind(
 def sample_posterior(posterior, place_bin_edges, n_samples=1000):
     hist_dist = rv_histogram((posterior, place_bin_edges))
     return hist_dist.rvs(size=n_samples)
+
+
+def calculate_ahead_behind(posterior, track_graph, decoder, position_info):
+
+    map_position_2d, map_edges = _get_MAP_estimate_2d_position_edges(
+        posterior, track_graph, decoder)
+    actual_projected_position = position_info[
+        ["projected_x_position", "projected_y_position"]
+    ].values
+    track_segment_id = position_info.track_segment_id.values.astype(
+        int).squeeze()
+    actual_edges = np.asarray(track_graph.edges)[track_segment_id]
+    head_directions = position_info.head_direction.values
+
+    copy_graph = track_graph.copy()
+    ahead_behind = []
+
+    for actual_pos, actual_edge, head_dir, map_pos, map_edge in zip(
+            actual_projected_position, actual_edges, head_directions,
+            map_position_2d, map_edges):
+        ahead_behind.append(get_ahead_or_behind(
+            copy_graph, actual_pos, actual_edge, head_dir, map_pos,
+            map_edge
+        ))
+
+    return np.asarray(ahead_behind)
