@@ -1,5 +1,7 @@
 import networkx as nx
 import numpy as np
+from scipy.stats import rv_histogram
+
 from loren_frank_data_processing.track_segment_classification import (
     get_track_segments_from_graph, project_points_to_segment)
 
@@ -85,3 +87,125 @@ def calculate_replay_distance(
         copy_graph.remove_node('map_position')
 
     return np.asarray(replay_distance_from_animal_position)
+
+
+def points_toward_node(track_graph, edge, head_direction):
+    """Given an edge, determine the node the head is pointed toward
+
+    Parameters
+    ----------
+    track_graph : networkx.Graph
+    edge : array-like, shape (2,)
+    head_direction : array-like
+        Angle of head in radians
+
+    Returns
+    -------
+    node : object
+
+    """
+    edge = np.asarray(edge)
+    node1_pos = np.asarray(track_graph.nodes[edge[0]]["pos"])
+    node2_pos = np.asarray(track_graph.nodes[edge[1]]["pos"])
+    edge_vector = node2_pos - node1_pos
+    head_vector = np.asarray([np.cos(head_direction), np.sin(head_direction)])
+
+    return edge[(edge_vector @ head_vector >= 0).astype(int)]
+
+
+def get_distance_between_nodes(track_graph, node1, node2):
+    node1_pos = np.asarray(track_graph.nodes[node1]["pos"])
+    node2_pos = np.asarray(track_graph.nodes[node2]["pos"])
+    return np.sqrt(np.sum((node1_pos - node2_pos) ** 2))
+
+
+def get_ahead_or_behind(
+    track_graph, actual_pos, actual_edge, head_direction, mental_pos,
+    mental_edge
+):
+    """
+
+    Parameters
+    ----------
+    track_graph : nx.Graph
+    actual_pos : array-like, shape (2,)
+    actual_edge : array-like, shape (2,)
+    head_direction : float
+    mental_pos : array-like, shape (2,)
+    mental_edge : array-like, shape (2,)
+
+    Returns
+    -------
+    ahead_behind : {-1, 0, 1}
+        -1 is behind, 1 is ahead, 0 is same
+
+    """
+    if np.allclose(actual_pos, mental_pos):
+        return 0
+    else:
+        track_graph.add_node("actual_position", pos=actual_pos)
+        track_graph.add_node("head", pos=actual_pos)
+        track_graph.add_node("mental_position", pos=mental_pos)
+
+        # determine which node head is pointing towards
+        node_ahead = points_toward_node(
+            track_graph, actual_edge, head_direction)
+        node_behind = actual_edge[~np.isin(actual_edge, node_ahead)][0]
+
+        # insert edges between nodes
+        if np.all(actual_edge == mental_edge):  # if all on same edge
+            same_side = (
+                get_distance_between_nodes(track_graph, "actual_position", "mental_position") <=
+                get_distance_between_nodes(track_graph, "actual_position", node_ahead))
+            if same_side:
+                node_order = [
+                    node_ahead,
+                    "mental_position",
+                    "head",
+                    "actual_position",
+                    node_behind,
+                ]
+            else:
+                node_order = [
+                    node_ahead,
+                    "head",
+                    "actual_position",
+                    "mental_position",
+                    node_behind,
+                ]
+        else:
+            node_order = [node_ahead, "head", "actual_position", node_behind]
+
+            distance = get_distance_between_nodes(
+                track_graph, mental_edge[0], "mental_position")
+            track_graph.add_edge(
+                mental_edge[0], "mental_position", distance=distance)
+
+            distance = get_distance_between_nodes(
+                track_graph, "mental_position", mental_edge[1])
+            track_graph.add_edge(
+                "mental_position", mental_edge[1], distance=distance)
+
+        for node1, node2 in zip(node_order[:-1], node_order[1:]):
+            distance = get_distance_between_nodes(track_graph, node1, node2)
+            track_graph.add_edge(node1, node2, distance=distance)
+
+        # Find shortest path in terms of nodes
+        path = nx.shortest_path(
+            track_graph,
+            source="actual_position",
+            target="mental_position",
+            weight="distance",
+        )
+
+        # Cleanup: remove inserted nodes
+        track_graph.remove_node("actual_position")
+        track_graph.remove_node("head")
+        track_graph.remove_node("mental_position")
+
+        return 1 if "head" in path else -1
+
+
+def sample_posterior(posterior, place_bin_edges, n_samples=1000):
+    hist_dist = rv_histogram((posterior, place_bin_edges))
+    return hist_dist.rvs(size=n_samples)
