@@ -10,38 +10,57 @@ from matplotlib.colorbar import ColorbarBase, make_axes
 from trajectory_analysis_tools import get_trajectory_data, get_distance_metrics
 
 
-def make_movie(position, map_position, position_info, frame_rate=500,
-               movie_name="video_name.mp4"):
+def make_movie(time_slice, classifier, results, data, frame_rate=500,
+               movie_name="video_name.mp4", position_color="magenta",
+               map_color="limegreen"
+              ):
+    t = data["position_info"].index / np.timedelta64(1, "s")
+    posterior = (results["acausal_posterior"]
+                 .sum("state", skipna=False)
+                 .sel(time=time_slice))
+    (actual_projected_position, actual_edges, directions,
+     map_position, map_edges) = get_trajectory_data(
+        posterior=posterior,
+        track_graph=data["track_graph"],
+        decoder=classifier,
+        position_info=data["position_info"].reset_index().set_index(t).loc[time_slice]
+    )
+    
+    
     # Set up formatting for the movie files
     Writer = animation.writers["ffmpeg"]
     writer = Writer(fps=frame_rate, metadata=dict(artist="Me"), bitrate=1800)
 
     fig, ax = plt.subplots(1, 1, figsize=(7, 7))
     ax.set_facecolor('black')
-    position_2d = position_info.loc[:, ["x_position", "y_position"]]
     ax.plot(
-        position_2d.values[:, 0],
-        position_2d.values[:, 1],
+        data["position_info"].x_position,
+        data["position_info"].y_position,
         color="lightgrey",
         alpha=0.4,
         zorder=1,
     )
 
-    ax.set_xlim(position_info.x_position.min() - 1,
-                position_info.x_position.max() + 1)
-    ax.set_ylim(position_info.y_position.min() + 1,
-                position_info.y_position.max() + 1)
+    ax.set_xlim(data["position_info"].x_position.min() - 1,
+                data["position_info"].x_position.max() + 1)
+    ax.set_ylim(data["position_info"].y_position.min() + 1,
+                data["position_info"].y_position.max() + 1)
     ax.set_xlabel("x-position")
     ax.set_ylabel("y-position")
 
-    position = np.asarray(position)
     position_dot = plt.scatter(
-        [], [], s=80, zorder=102, color="b", label="Actual"
+        [], [], s=80, zorder=101, color=position_color, label="Actual"
     )
-    (position_line,) = plt.plot([], [], "b-", linewidth=3)
+    position_arrow = ax.arrow(
+        [], [], [], [],
+        zorder=102,
+        head_width=1.5,
+        linewidth=3,
+        color=position_color)
+    (position_line,) = plt.plot([], [], color=position_color, linewidth=3)
     sns.despine()
-    map_dot = plt.scatter([], [], s=80, zorder=102, color="r", label="Decoded")
-    (map_line,) = plt.plot([], [], "r-", linewidth=3)
+    map_dot = plt.scatter([], [], s=80, zorder=102, color=map_color, label="Decoded")
+    (map_line,) = plt.plot([], [], color=map_color, linewidth=3)
     ax.legend(fontsize=9, loc='upper right')
     n_frames = map_position.shape[0]
 
@@ -49,15 +68,27 @@ def make_movie(position, map_position, position_info, frame_rate=500,
         start_ind = max(0, time_ind - 5)
         time_slice = slice(start_ind, time_ind)
 
-        position_dot.set_offsets(position[time_ind])
+        ax.patches.pop(0)
+        patch = ax.arrow(actual_projected_position[time_ind, 0], 
+                         actual_projected_position[time_ind, 1],
+                         1e-5 * np.cos(directions[time_ind]),
+                         1e-5 * np.sin(directions[time_ind]),
+                         zorder=102,
+                         head_width=1.5,
+                         linewidth=3,
+                         color=position_color, 
+                         )
+        position_dot.set_offsets(actual_projected_position[time_ind])
         position_line.set_data(
-            position[time_slice, 0], position[time_slice, 1])
+            actual_projected_position[time_slice, 0],
+            actual_projected_position[time_slice, 1])
 
         map_dot.set_offsets(map_position[time_ind])
         map_line.set_data(
-            map_position[time_slice, 0], map_position[time_slice, 1])
+            map_position[time_slice, 0],
+            map_position[time_slice, 1])
 
-        return position_dot, map_dot
+        return position_arrow, map_dot
 
     movie = animation.FuncAnimation(
         fig, _update_plot, frames=n_frames, interval=1000 / frame_rate,
