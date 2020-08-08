@@ -1,9 +1,13 @@
+import copy
+
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from matplotlib.collections import LineCollection
 from matplotlib.colorbar import ColorbarBase, make_axes
+
+from trajectory_analysis_tools import get_trajectory_data, get_distance_metrics
 
 
 def make_movie(position, map_position, position_info, frame_rate=500,
@@ -72,26 +76,28 @@ def plot_classifier_time_slice(
     data,
     posterior_type="acausal_posterior",
     figsize=(30, 20),
+    cmap="bone_r",
 ):
 
     t = data["position_info"].index / np.timedelta64(1, "s")
-    cmap = plt.cm.viridis
-    cmap.set_bad("white", alpha=0.0)
+    cmap = copy.copy(plt.cm.get_cmap(cmap))
+    cmap.set_bad(color="lightgrey", alpha=1.0)
 
     fig, axes = plt.subplots(
-        nrows=5,
+        nrows=6,
         ncols=1,
         figsize=figsize,
         sharex=True,
         constrained_layout=True,
-        gridspec_kw={"height_ratios": [3, 1, 1, 1, 1]},
+        gridspec_kw={"height_ratios": [3, 1, 1, 1, 1, 1]},
     )
 
     # ax 0
-    (results[posterior_type]
-     .sum("state", skipna=False)
-     .sel(time=time_slice)
-     .plot(
+    posterior = (results[posterior_type]
+                 .sum("state", skipna=False)
+                 .sel(time=time_slice))
+
+    (posterior.plot(
         x="time", y="position", robust=True, ax=axes[0],
         cmap=cmap, vmin=0.0,
     ))
@@ -107,7 +113,7 @@ def plot_classifier_time_slice(
         .set_index(t)
         .loc[time_slice]
         .linear_position,
-        color="white",
+        color="magenta",
         linestyle="--",
         linewidth=5,
         alpha=0.8,
@@ -123,6 +129,26 @@ def plot_classifier_time_slice(
     axes[1].set_xlabel("")
 
     # ax 2
+    trajectory_data = get_trajectory_data(
+        posterior=posterior,
+        track_graph=data["track_graph"],
+        decoder=classifier,
+        position_info=data["position_info"].reset_index().set_index(t).loc[time_slice]
+    )
+
+    distance_metrics = get_distance_metrics(data["track_graph"], *trajectory_data)
+    ahead_behind_distance = (
+        distance_metrics.mental_position_ahead_behind_animal *
+        distance_metrics.mental_position_distance_from_animal)
+    axes[2].plot(posterior.time, ahead_behind_distance, color="black", linewidth=2)
+    axes[2].axhline(0, color="magenta", linestyle="--")
+    axes[2].set_title("Mental distance ahead or behind animal")
+    axes[2].set_ylabel("Distance [cm]")
+    max_dist = np.max(distance_metrics.mental_position_distance_from_animal) + 5
+    axes[2].set_ylim((-max_dist, max_dist))
+    axes[2].text(posterior.time[0], max_dist-1, "Ahead", color="grey")
+    axes[2].text(posterior.time[0], -max_dist+1, "Behind", color="grey")
+    # ax 3
     multiunit_firing = (
         data["multiunit_firing_rate"]
         .reset_index(drop=True)
@@ -130,23 +156,23 @@ def plot_classifier_time_slice(
             data["multiunit_firing_rate"].index / np.timedelta64(1, "s"))
     )
 
-    axes[2].fill_between(
+    axes[3].fill_between(
         multiunit_firing.loc[time_slice].index.values,
         multiunit_firing.loc[time_slice].values.squeeze(),
         color="black",
     )
-    axes[2].set_ylabel("Firing Rate\n[spikes / s]")
-    axes[2].set_title("Multiunit")
+    axes[3].set_ylabel("Firing Rate\n[spikes / s]")
+    axes[3].set_title("Multiunit")
 
     # ax 4
     theta = data['theta'].set_index(
         data['theta'].index / np.timedelta64(1, 's')).loc[time_slice]
-    axes[3].plot(theta.index, theta.bandpassed_lfp)
-    axes[3].set_title('Theta filtered LFP')
-    axes[3].set_ylabel('Amplitude [mV]')
+    axes[4].plot(theta.index, theta.bandpassed_lfp)
+    axes[4].set_title('Theta filtered LFP')
+    axes[4].set_ylabel('Amplitude [mV]')
 
     # ax 5
-    axes[4].fill_between(
+    axes[5].fill_between(
         data["position_info"].reset_index().set_index(t).loc[time_slice].index,
         data["position_info"]
         .reset_index()
@@ -157,9 +183,9 @@ def plot_classifier_time_slice(
         linewidth=1,
         alpha=0.5,
     )
-    axes[4].set_title('Speed')
-    axes[4].set_ylabel("Speed [cm / s]")
-    axes[4].set_xlabel("Time [s]")
+    axes[5].set_title('Speed')
+    axes[5].set_ylabel("Speed [cm / s]")
+    axes[5].set_xlabel("Time [s]")
     sns.despine()
 
 
@@ -169,13 +195,14 @@ def plot_local_non_local_time_slice(
     results,
     data,
     posterior_type="acausal_posterior",
+    cmap="bone_r",
     figsize=(30, 20),
 ):
     t = data["position_info"].index / np.timedelta64(1, "s")
     mask = np.ones_like(detector.is_track_interior_.squeeze(), dtype=np.float)
     mask[~detector.is_track_interior_] = np.nan
-    cmap = plt.cm.viridis
-    cmap.set_bad("white", alpha=0.0)
+    cmap = copy.copy(plt.cm.get_cmap(cmap))
+    cmap.set_bad(color="lightgrey", alpha=1.0)
 
     fig, axes = plt.subplots(
         nrows=5,

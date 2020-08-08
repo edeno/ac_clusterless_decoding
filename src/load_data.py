@@ -176,12 +176,15 @@ def load_data(epoch_key):
               .tetrode_number.isin(tetrode_info.ref.dropna().unique())).values
     ref_tetrode_key = tetrode_info.loc[is_ref].index[0]
     theta_df = get_filter(ref_tetrode_key, ANIMALS, freq_band='theta')
-
+    track_graph, center_well_id = make_track_graph()
+    
     return {
         'position_info': position_info,
         'multiunits': multiunits,
         'theta': theta_df,
         'multiunit_firing_rate': multiunit_firing_rate,
+        'track_graph': track_graph,
+        'center_well_id': center_well_id,
     }
 
 
