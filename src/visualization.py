@@ -3,6 +3,7 @@ import copy
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from matplotlib.collections import LineCollection
 from matplotlib.colorbar import ColorbarBase, make_axes
@@ -25,14 +26,25 @@ def make_movie(time_slice, classifier, results, data, frame_rate=500,
         position_info=data["position_info"].reset_index(
         ).set_index(t).loc[time_slice]
     )
+    distance_metrics = get_distance_metrics(
+        data["track_graph"], actual_projected_position, actual_edges, directions,
+        map_position, map_edges)
+    ahead_behind_distance = (
+        distance_metrics.mental_position_ahead_behind_animal *
+        distance_metrics.mental_position_distance_from_animal)
 
     # Set up formatting for the movie files
     Writer = animation.writers["ffmpeg"]
     writer = Writer(fps=frame_rate, metadata=dict(artist="Me"), bitrate=1800)
 
-    fig, ax = plt.subplots(1, 1, figsize=(7, 7))
-    ax.set_facecolor('black')
-    ax.plot(
+    fig, axes = plt.subplots(3, 1,
+                             figsize=(7, 10),
+                             gridspec_kw={"height_ratios": [3, 1, 1]},
+                             constrained_layout=True)
+    
+    # ax 0
+    axes[0].set_facecolor('black')
+    axes[0].plot(
         data["position_info"].x_position,
         data["position_info"].y_position,
         color="lightgrey",
@@ -40,36 +52,77 @@ def make_movie(time_slice, classifier, results, data, frame_rate=500,
         zorder=1,
     )
 
-    ax.set_xlim(data["position_info"].x_position.min() - 1,
+    axes[0].set_xlim(data["position_info"].x_position.min() - 1,
                 data["position_info"].x_position.max() + 1)
-    ax.set_ylim(data["position_info"].y_position.min() + 1,
+    axes[0].set_ylim(data["position_info"].y_position.min() + 1,
                 data["position_info"].y_position.max() + 1)
-    ax.set_xlabel("x-position")
-    ax.set_ylabel("y-position")
+    axes[0].set_xlabel("x-position")
+    axes[0].set_ylabel("y-position")
 
-    position_dot = plt.scatter(
+    position_dot = axes[0].scatter(
         [], [], s=80, zorder=101, color=position_color, label="Actual"
     )
-    position_arrow = ax.arrow(
+    position_arrow = axes[0].arrow(
         [], [], [], [],
         zorder=102,
         head_width=1.5,
         linewidth=3,
         color=position_color)
-    (position_line,) = plt.plot([], [], color=position_color, linewidth=3)
+    (position_line,) = axes[0].plot([], [], color=position_color, linewidth=3)
     sns.despine()
-    map_dot = plt.scatter([], [], s=80, zorder=102,
+    map_dot = axes[0].scatter([], [], s=80, zorder=102,
                           color=map_color, label="Decoded")
-    (map_line,) = plt.plot([], [], color=map_color, linewidth=3)
-    ax.legend(fontsize=9, loc='upper right')
+    (map_line,) = axes[0].plot([], [], color=map_color, linewidth=3)
+    axes[0].legend(fontsize=9, loc='upper right')
     n_frames = map_position.shape[0]
+    
+    # ax 1
+    ahead_behind_dot = axes[1].scatter([], [], s=80, zorder=102,
+                                       color=map_color, label="Decoded")
+    (ahead_behind_line,) = axes[1].plot([], [], color=map_color, linewidth=3, zorder=101)
+    ahead_behind_data = np.stack([posterior.time.values,
+                                  ahead_behind_distance], axis=1)
+    axes[1].plot(posterior.time, ahead_behind_distance,
+                 color="lightgrey", linewidth=2, clip_on=False)
+    axes[1].axhline(0, color=position_color, linestyle="--")
+    axes[1].set_title("Mental distance ahead or behind animal")
+    axes[1].set_ylabel("Distance [cm]")
+    max_dist = np.ceil(np.max(
+        distance_metrics.mental_position_distance_from_animal)).astype(int)
+    axes[1].set_ylim((-max_dist, max_dist))
+    axes[1].set_yticks((-max_dist, max_dist))
+    axes[1].text(posterior.time[0], max_dist - 1, "Ahead", color="grey", va="bottom")
+    axes[1].text(posterior.time[0], -max_dist + 1, "Behind", color="grey", va="bottom")
+    min_time, max_time = posterior.time.min(), posterior.time.max()
+    axes[1].set_xlim((min_time, max_time))
+    axes[1].set_xticks([])
+    sns.despine(ax=axes[1], bottom=True)
+    
+    # ax 2
+    new_index = pd.Index(np.unique(np.concatenate(
+        (data["theta"].index, data["position_info"].index))), name='time')
+    theta = (data["theta"]
+             .reindex(index=new_index)
+             .interpolate(method='linear')
+             .reindex(index=data["position_info"].index)
+             .set_index(data["position_info"].index / np.timedelta64(1, 's'))
+             .loc[time_slice]
+            )
+    axes[2].plot(theta.index, theta.bandpassed_lfp, color="black")
+    axes[2].set_title('Theta filtered LFP')
+    axes[2].set_ylabel('Amplitude [mV]')
+    axes[2].set_xlim((min_time, max_time))
+    theta_dot = axes[2].scatter([], [], s=80, zorder=102,
+                                color="black")
+    sns.despine(ax=axes[2])
 
     def _update_plot(time_ind):
         start_ind = max(0, time_ind - 5)
         time_slice = slice(start_ind, time_ind)
-
-        ax.patches.pop(0)
-        ax.arrow(actual_projected_position[time_ind, 0],
+        
+        # ax 0
+        axes[0].patches.pop(0)
+        axes[0].arrow(actual_projected_position[time_ind, 0],
                  actual_projected_position[time_ind, 1],
                  1e-5 * np.cos(directions[time_ind]),
                  1e-5 * np.sin(directions[time_ind]),
@@ -87,6 +140,15 @@ def make_movie(time_slice, classifier, results, data, frame_rate=500,
         map_line.set_data(
             map_position[time_slice, 0],
             map_position[time_slice, 1])
+        
+        # ax 1
+        ahead_behind_dot.set_offsets(ahead_behind_data[time_ind])
+        ahead_behind_line.set_data(
+            ahead_behind_data[time_slice, 0],
+            ahead_behind_data[time_slice, 1])
+        
+        # ax 2
+        theta_dot.set_offsets(np.asarray(theta.reset_index())[time_ind, :2])
 
         return position_arrow, map_dot
 
@@ -183,6 +245,7 @@ def plot_classifier_time_slice(
     axes[2].set_ylim((-max_dist, max_dist))
     axes[2].text(posterior.time[0], max_dist - 1, "Ahead", color="grey")
     axes[2].text(posterior.time[0], -max_dist + 1, "Behind", color="grey")
+
     # ax 3
     multiunit_firing = (
         data["multiunit_firing_rate"]
