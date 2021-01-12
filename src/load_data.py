@@ -109,18 +109,33 @@ def get_interpolated_position_info(
 def make_track_graph():
     CENTER_WELL_ID = 7
 
+
     NODE_POSITIONS = np.array([
-        (18.091, 55.053),  # 0 - top left well
-        (33.583, 48.357),  # 1 - top middle intersection
-        (47.753, 56.512),  # 2 - top right well
-        (33.973, 31.406),  # 3 - middle intersection
-        (21.166, 21.631),  # 4 - bottom left intersection
-        (04.585, 28.966),  # 5 - middle left well
-        (48.539, 24.572),  # 6 - middle right intersection
-        (22.507, 05.012),  # 7 - bottom left well
-        (49.726, 07.439),  # 8 - bottom right well
-        (62.755, 33.410),  # 9 - middle right well
+	(79.910, 216.720), # top left well 0
+	(132.031, 187.806), # top middle intersection 1
+	(183.718, 217.713), # top right well 2
+	(132.544, 132.158), # middle intersection 3
+	(87.202, 101.397),  # bottom left intersection 4
+	(31.340, 126.110), # middle left well 5 
+	(180.337, 104.799), # middle right intersection 6
+	(92.693, 42.345),  # bottom left well 7 	
+	(183.784, 45.375),  # bottom right well 8
+	(231.338, 136.281), # middle right well 9
     ])
+
+	# NODE_POSITIONS = np.array([
+	#     (18.091, 55.053), # top left well 0
+	#     (33.583, 48.357), # top middle intersection 1
+	#     (47.753, 56.512), # top right well 2
+	#     (33.973, 31.406), # middle intersection 3
+	#     (21.166, 21.631),  # bottom left intersection 4
+	#     (04.585, 28.966), # middle left well 5 
+	#     (48.539, 24.572), # middle right intersection 6
+	#     (22.507, 05.012),  # bottom left well 7 
+	#     (49.726, 07.439),  # bottom right well 8
+	#     (62.755, 33.410), # middle right well 9
+	# ])
+
 
     EDGES = np.array([
         (0, 1),
@@ -157,7 +172,8 @@ def load_data(epoch_key):
     logger.info('Loading multiunits...')
     tetrode_info = make_tetrode_dataframe(
         ANIMALS).xs(epoch_key, drop_level=False)
-    tetrode_keys = tetrode_info.loc[tetrode_info.area == 'ca1'].index
+    tetrode_keys = tetrode_info.loc[tetrode_info.area == 'hpc'].index
+    #ca1 for jaq
 
     def _time_function(*args, **kwargs):
         return position_info.index
@@ -203,7 +219,8 @@ def get_filter_filename(tetrode_key, animals, freq_band='theta'):
         File path to tetrode file LFP
     '''
     animal, day, epoch, tetrode_number = tetrode_key
-    filename = (f'{animals[animal].short_name}{freq_band}{day:02d}-{epoch}-'
+	#add eeggnd to filename to get correct theta from a reference ntrode
+    filename = (f'{animals[animal].short_name}{freq_band}eeggnd{day:02d}-{epoch}-'
                 f'{tetrode_number:02d}.mat')
     return os.path.join(animals[animal].directory, 'EEG', filename)
 
