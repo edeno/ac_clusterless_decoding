@@ -185,6 +185,7 @@ def plot_classifier_time_slice(
         gridspec_kw={"height_ratios": [3, 1, 1, 1, 1, 1]},
     )
 
+    
     # ax 0
     posterior = (results[posterior_type]
                  .sum("state", skipna=False)
