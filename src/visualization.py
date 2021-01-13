@@ -265,7 +265,7 @@ def plot_classifier_time_slice(
     # ax 4
     theta = data['theta'].set_index(
         data['theta'].index / np.timedelta64(1, 's')).loc[time_slice]
-    axes[4].plot(theta.index, theta.bandpassed_lfp)
+    axes[4].plot(theta.index, theta.bandpassed_lfp, color="black")
     axes[4].set_title('Theta filtered LFP')
     axes[4].set_ylabel('Amplitude [mV]')
 
