@@ -14,11 +14,20 @@ PROCESSED_DATA_DIR = join(ROOT_DIR, 'Processed-Data')
 FIGURE_DIR = join(ROOT_DIR, 'figures')
 
 ANIMALS = {
-    'jaq': Animal(directory=join(RAW_DATA_DIR, 'jaq'), short_name='jaq'),
-    'chimi': Animal(directory=join(RAW_DATA_DIR, 'chimi'), short_name='chimi'),
+    'jaq': Animal(directory='/stelmo/alison/jaq/filterframework', short_name='jaq'),
+    'chimi': Animal(directory='/stelmo/alison/chimi/filterframework', short_name='chimi'),
 }
 
-EDGE_ORDER = [6, 5, 3, 8, 7, 4, 2, 0, 1]
+EDGE_ORDER = [(3, 6),
+              (6, 8),
+              (6, 9),
+              (3, 1),
+              (1, 2),
+              (1, 0),
+              (3, 4),
+              (4, 5),
+              (4, 7)
+             ]
 EDGE_SPACING = 15
 
 detector_parameters = {
