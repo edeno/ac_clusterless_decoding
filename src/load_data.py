@@ -1,21 +1,18 @@
 import os
 from logging import getLogger
 
-import networkx as nx
 import numpy as np
 import pandas as pd
-from scipy.io import loadmat
-from scipy.ndimage.filters import gaussian_filter1d
-
 from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          make_tetrode_dataframe)
-from loren_frank_data_processing.core import reconstruct_time, get_data_structure
+from loren_frank_data_processing.core import (get_data_structure,
+                                              reconstruct_time)
 from loren_frank_data_processing.position import _get_pos_dataframe
-from loren_frank_data_processing.track_segment_classification import (
-    calculate_linear_distance, classify_track_segments)
-from track_linearization import make_track_graph, get_linearized_position
+from scipy.io import loadmat
+from scipy.ndimage.filters import gaussian_filter1d
 from src.parameters import (ANIMALS, EDGE_ORDER, EDGE_SPACING,
                             SAMPLING_FREQUENCY)
+from track_linearization import get_linearized_position, make_track_graph
 
 logger = getLogger(__name__)
 
@@ -93,11 +90,12 @@ def _get_pos_dataframe(epoch_key, animals):
     else:
         return pd.DataFrame(position_data[:, 1:5], columns=FIELD_NAMES[1:5],
                             index=time)
-    
+
 
 def get_interpolated_position_info(
-        epoch_key, animals, use_HMM=False, route_euclidean_distance_scaling=1.0,
-        sensor_std_dev=5.0, diagonal_bias=0.5, edge_spacing=EDGE_SPACING,
+        epoch_key, animals, use_HMM=False,
+        route_euclidean_distance_scaling=1.0, sensor_std_dev=5.0,
+        diagonal_bias=0.5, edge_spacing=EDGE_SPACING,
         edge_order=EDGE_ORDER):
 
     position_info = _get_pos_dataframe(epoch_key, animals)
@@ -109,7 +107,7 @@ def get_interpolated_position_info(
 
     linear_position_df = get_linearized_position(
         position=position,
-        track_graph=track_graph, 
+        track_graph=track_graph,
         edge_spacing=EDGE_SPACING,
         edge_order=EDGE_ORDER,
         use_HMM=use_HMM,
@@ -125,18 +123,17 @@ def get_interpolated_position_info(
 
 def get_track_graph():
     NODE_POSITIONS = np.array([
-        (79.910, 216.720), # top left well 0
-        (132.031, 187.806), # top middle intersection 1
-        (183.718, 217.713), # top right well 2
-        (132.544, 132.158), # middle intersection 3
+        (79.910, 216.720),  # top left well 0
+        (132.031, 187.806),  # top middle intersection 1
+        (183.718, 217.713),  # top right well 2
+        (132.544, 132.158),  # middle intersection 3
         (87.202, 101.397),  # bottom left intersection 4
-        (31.340, 126.110), # middle left well 5 
-        (180.337, 104.799), # middle right intersection 6
+        (31.340, 126.110),  # middle left well 5
+        (180.337, 104.799),  # middle right intersection 6
         (92.693, 42.345),  # bottom left well 7
         (183.784, 45.375),  # bottom right well 8
-        (231.338, 136.281), # middle right well 9
+        (231.338, 136.281),  # middle right well 9
     ])
-
 
     EDGES = np.array([
         (0, 1),
@@ -162,7 +159,7 @@ def load_data(epoch_key):
     tetrode_info = make_tetrode_dataframe(
         ANIMALS).xs(epoch_key, drop_level=False)
     tetrode_keys = tetrode_info.loc[tetrode_info.area == 'hpc'].index
-    #ca1 for jaq
+    # ca1 for jaq
 
     def _time_function(*args, **kwargs):
         return position_info.index
@@ -183,7 +180,7 @@ def load_data(epoch_key):
     ref_tetrode_key = tetrode_info.loc[is_ref].index[0]
     theta_df = get_filter(ref_tetrode_key, ANIMALS, freq_band='theta')
     track_graph = get_track_graph()
-    
+
     return {
         'position_info': position_info,
         'multiunits': multiunits,
@@ -211,9 +208,9 @@ def get_filter_filename(tetrode_key, animals, freq_band='theta'):
         File path to tetrode file LFP
     '''
     animal, day, epoch, tetrode_number = tetrode_key
-	#add eeggnd to filename to get correct theta from a reference ntrode
-    filename = (f'{animals[animal].short_name}{freq_band}eeggnd{day:02d}-{epoch}-'
-                f'{tetrode_number:02d}.mat')
+    # add eeggnd to filename to get correct theta from a reference ntrode
+    filename = (f'{animals[animal].short_name}{freq_band}eeggnd{day:02d}'
+                f'-{epoch}-{tetrode_number:02d}.mat')
     return os.path.join(animals[animal].directory, 'EEG', filename)
 
 
