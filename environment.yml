@@ -9,6 +9,8 @@ dependencies:
 - ripple_detection
 - replay_trajectory_classification
 - replay_identification
+- trajectory_analysis_tools
+- track_linearization
 - spectral_connectivity
 - numpy
 - numba
