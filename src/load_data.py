@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 from loren_frank_data_processing import (get_all_multiunit_indicators,
                                          make_tetrode_dataframe)
-from loren_frank_data_processing.core import (get_data_structure,
-                                              reconstruct_time)
+from loren_frank_data_processing.core import reconstruct_time
 from loren_frank_data_processing.position import _get_pos_dataframe
 from scipy.io import loadmat
 from scipy.ndimage.filters import gaussian_filter1d
@@ -65,31 +64,6 @@ def get_multiunit_population_firing_rate(multiunit, sampling_frequency,
     '''
     return gaussian_smooth(multiunit.mean(axis=1) * sampling_frequency,
                            smoothing_sigma, sampling_frequency)
-
-
-def _get_pos_dataframe(epoch_key, animals):
-    animal, day, epoch = epoch_key
-    struct = get_data_structure(animals[animal], day, 'pos', 'pos')[epoch - 1]
-    position_data = struct['data'][0, 0]
-    FIELD_NAMES = ['time', 'x_position', 'y_position', 'head_direction',
-                   'speed', 'smoothed_x_position', 'smoothed_y_position',
-                   'smoothed_head_direction', 'smoothed_speed']
-    time = pd.TimedeltaIndex(
-        position_data[:, 0], unit='s', name='time')
-    n_cols = position_data.shape[1]
-
-    if n_cols > 5:
-        # Use the smoothed data if available
-        NEW_NAMES = {'smoothed_x_position': 'x_position',
-                     'smoothed_y_position': 'y_position',
-                     'smoothed_head_direction': 'head_direction',
-                     'smoothed_speed': 'speed'}
-        return (pd.DataFrame(
-            position_data[:, 5:9], columns=FIELD_NAMES[5:9], index=time)
-            .rename(columns=NEW_NAMES))
-    else:
-        return pd.DataFrame(position_data[:, 1:5], columns=FIELD_NAMES[1:5],
-                            index=time)
 
 
 def get_interpolated_position_info(
