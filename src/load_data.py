@@ -157,6 +157,7 @@ def load_data(epoch_key):
 
     return {
         'position_info': position_info,
+        'tetrode_info': tetrode_info,
         'multiunits': multiunits,
         'theta': theta_df,
         'multiunit_firing_rate': multiunit_firing_rate,
