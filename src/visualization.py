@@ -200,7 +200,7 @@ def plot_classifier_time_slice(
 
     axes[0].set_title("Posterior")
 
-    axes[0].plot(
+    axes[0].scatter(
         data["position_info"].reset_index().set_index(t).loc[time_slice].index,
         data["position_info"]
         .reset_index()
@@ -208,9 +208,8 @@ def plot_classifier_time_slice(
         .loc[time_slice]
         .linear_position,
         color="magenta",
-        linestyle="--",
-        linewidth=5,
-        alpha=0.8,
+        s=1,
+        alpha=1,
     )
     axes[0].set_xlabel("")
 
