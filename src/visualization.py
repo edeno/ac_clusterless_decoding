@@ -7,7 +7,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.collections import LineCollection
 from matplotlib.colorbar import ColorbarBase, make_axes
-from trajectory_analysis_tools import get_distance_metrics, get_trajectory_data
+from trajectory_analysis_tools import get_ahead_behind_distance, get_trajectory_data
 
 
 def make_movie(time_slice, classifier, results, data, frame_rate=500,
@@ -231,11 +231,8 @@ def plot_classifier_time_slice(
         ).set_index(t).loc[time_slice]
     )
 
-    distance_metrics = get_distance_metrics(
-        data["track_graph"], *trajectory_data)
-    ahead_behind_distance = (
-        distance_metrics.mental_position_ahead_behind_animal *
-        distance_metrics.mental_position_distance_from_animal)
+    ahead_behind_distance = get_ahead_behind_distance(
+        data['track_graph'], *trajectory_data)
     axes[2].plot(posterior.time, ahead_behind_distance,
                  color="black", linewidth=2)
     axes[2].axhline(0, color="magenta", linestyle="--")
